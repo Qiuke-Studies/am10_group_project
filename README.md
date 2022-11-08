@@ -2,7 +2,7 @@
 
 ## Proposal
 
-Our topic is crime. Our dataset came from <https://www.kaggle.com/datasets/kaggle/san-francisco-crime-classification>. This dataset covers 12 years of crime data in San Fransisco, with variables including time (date, day of week), location (address, police department district, longitude and latitude), and crime facts (crime category, description, resolution). 
+Our topic is crime. Our dataset came from <https://www.kaggle.com/datasets/kaggle/san-francisco-crime-classification>. This dataset covers 12 years (2003 - 2015) of crime data in San Fransisco, with variables including time (date, day of week), location (address, police department district, longitude and latitude), and crime facts (crime category, description, resolution). 
 
 We plan to use visualisation to explore relationships crime has with time and location. Visualisation ideas include location and crime category, number of arrests in specific police department districts etc. 
 
