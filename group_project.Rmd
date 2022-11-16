@@ -38,7 +38,7 @@ library(patchwork)
 library(gghighlight)
 library(skimr)
 library(remotes)
-install_github("kjhealy/nycdogs")
+library(here)
 library(nycdogs)
 library(sf) # for geospatial visualisation
 
@@ -47,5 +47,22 @@ loadfonts(device="pdf")
 ```
 
 
+
+
+```{r}
+san_sf <- read_sf(here("data/San_Francisco/geo_export_2f04d6c0-ba9f-4bca-9353-c633452abad2.shp"))
+
+glimpse(san_sf)
+
+# what type of geometry does our shapefile have?
+st_geometry(san_sf)
+
+
+ggplot() +
+  # draw polygons from London wards shapefile
+  geom_sf(data = san_sf, fill = "#3B454A", size = 0.125, colour = "#b2b2b277")
+
+
+```
 
 
