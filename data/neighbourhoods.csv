@@ -1,95 +1,143 @@
-﻿district ,dist_name,neighbourhood,
-1,NORTHWEST,Central Richmond,
-1,NORTHWEST,Inner Richmond,
-1,NORTHWEST,Jordan Park,
-1,NORTHWEST,Laurel Heights,
-1,NORTHWEST,Lake Mountain,
-1,NORTHWEST,Lone Mountain,
-1,NORTHWEST,Outer Richmond,
-1,NORTHWEST,Seacliff,
-2,CENTRAL WEST,Central Sunset,
-2,CENTRAL WEST,Golden Gate Heights,
-2,CENTRAL WEST,Inner Parkside,
-2,CENTRAL WEST,Outer Parkside,
-2,CENTRAL WEST,Outer Sunset,
-2,CENTRAL WEST,Parkside,
-3,SOUTHWEST,Ingleside,
-3,SOUTHWEST,Ingleside Heights,
-3,SOUTHWEST,Lake Shore,
-3,SOUTHWEST,Lakeside,
-3,SOUTHWEST,Merced Heights,
-3,SOUTHWEST,Merced Manor,
-3,SOUTHWEST,Oceanview,
-3,SOUTHWEST,Pine Lake Park,
-3,SOUTHWEST,Stonestown,
-4,TWIN PEAKS WEST,Balboa Terrace,
-4,TWIN PEAKS WEST,Diamond Heights,
-4,TWIN PEAKS WEST,Forest Hill,
-4,TWIN PEAKS WEST,Forest Hill Extension,
-4,TWIN PEAKS WEST,Ingleside Terrace,
-4,TWIN PEAKS WEST,Midtown Terrace,
-4,TWIN PEAKS WEST,Miraloma Park,
-4,TWIN PEAKS WEST,Monterey Heights,
-4,TWIN PEAKS WEST,Mount Davidson Manor,
-4,TWIN PEAKS WEST,Saint Francis Woods,
-4,TWIN PEAKS WEST,Sherwood Forest,
-4,TWIN PEAKS WEST,Sunnyside,
-4,TWIN PEAKS WEST,West Portal,
-4,TWIN PEAKS WEST,Westwood Highlands,
-4,TWIN PEAKS WEST,Westwood Park,
-5,CENTRAL,Buena Vista,
-5,CENTRAL,Ashbury Heights,
-5,CENTRAL,Clarendon Heights,
-5,CENTRAL,Cole Valley,
-5,CENTRAL,Parnassus Heights,
-5,CENTRAL,Corona Heights,
-5,CENTRAL,Duboce Triangle,
-5,CENTRAL,Eureka Valley,
-5,CENTRAL,Dolores Heights,
-5,CENTRAL,Glen Park,
-5,CENTRAL,Haight Ashbury,
-5,CENTRAL,Mission Dolores,
-5,CENTRAL,Noe Valley,
-5,CENTRAL,Twin Peaks,
-6,CENTRAL NORTH,Alamo Square,
-6,CENTRAL NORTH,Anza Vista,
-6,CENTRAL NORTH,Hayes Valley,
-6,CENTRAL NORTH,Lower Pacific Heights,
-6,CENTRAL NORTH,North Panhandle,
-6,CENTRAL NORTH,Western Addition,
-7,NORTH,Cow Hollow,
-7,NORTH,Marina,
-7,NORTH,Pacific Heights,
-7,NORTH,Presidio Heights,
-8,NORTHEAST,Downtown San Francisco,
-8,NORTHEAST,Financial District,
-8,NORTHEAST,Barbary Coast,
-8,NORTHEAST,Nob Hill,
-8,NORTHEAST,North Beach,
-8,NORTHEAST,North Waterfront,
-8,NORTHEAST,Russian Hill,
-8,NORTHEAST,Telegraph Hill,
-8,NORTHEAST,Tenderloin,
-8,NORTHEAST,Van Ness,
-8,NORTHEAST,Civic Center,
-9,CENTRAL EAST,Bernal Heights,
-9,CENTRAL EAST,Central Waterfront,
-9,CENTRAL EAST,Dogpatch,
-9,CENTRAL EAST,Inner Mission,
-9,CENTRAL EAST,Mission Bay,
-9,CENTRAL EAST,Potrero Hill,
-9,CENTRAL EAST,South Beach,
-9,CENTRAL EAST,South of Market,
-9,CENTRAL EAST,Yerba Buena,
-10,SOUTHEAST,Bayview,
-10,SOUTHEAST,Bayview Heights,
-10,SOUTHEAST,Candlestick Point,
-10,SOUTHEAST,Crocker Amazon,
-10,SOUTHEAST,Excelsior,
-10,SOUTHEAST,Hunters Point,
-10,SOUTHEAST,Little Hollywood,
-10,SOUTHEAST,Mission Terrace,
-10,SOUTHEAST,Outer Mission,
-10,SOUTHEAST,Portola,
-10,SOUTHEAST,Silver Terrace,
-10,SOUTHEAST,Visitacion Valley,
+﻿district ,dist_name,neighbourhood
+1,NORTHWEST,Central Richmond
+1,NORTHWEST,Inner Richmond
+1,NORTHWEST,Jordan Park
+1,NORTHWEST,Laurel Heights
+1,NORTHWEST,Lake Mountain
+1,NORTHWEST,Lone Mountain
+1,NORTHWEST,Outer Richmond
+1,NORTHWEST,Seacliff
+1,NORTHWEST,Lake Street
+1,NORTHWEST,Presidio National Park
+1,NORTHWEST,Presidio Terrace
+1,NORTHWEST,Sutro Heights
+1,NORTHWEST,Lincoln Park / Ft. Miley
+1,NORTHWEST,Golden Gate Park
+2,CENTRAL WEST,Central Sunset
+2,CENTRAL WEST,Golden Gate Heights
+2,CENTRAL WEST,Inner Parkside
+2,CENTRAL WEST,Outer Parkside
+2,CENTRAL WEST,Outer Sunset
+2,CENTRAL WEST,Parkside
+2,CENTRAL WEST,Inner Sunset
+3,SOUTHWEST,Ingleside
+3,SOUTHWEST,Ingleside Heights
+3,SOUTHWEST,Lake Shore
+3,SOUTHWEST,Lakeside
+3,SOUTHWEST,Merced Heights
+3,SOUTHWEST,Merced Manor
+3,SOUTHWEST,Oceanview
+3,SOUTHWEST,Pine Lake Park
+3,SOUTHWEST,Stonestown
+3,SOUTHWEST,Parkmerced
+3,SOUTHWEST,Lakeshore
+3,SOUTHWEST,Ingleside Terraces
+4,TWIN PEAKS WEST,Balboa Terrace
+4,TWIN PEAKS WEST,Diamond Heights
+4,TWIN PEAKS WEST,Forest Hill
+4,TWIN PEAKS WEST,Forest Hill Extension
+4,TWIN PEAKS WEST,Ingleside Terrace
+4,TWIN PEAKS WEST,Midtown Terrace
+4,TWIN PEAKS WEST,Miraloma Park
+4,TWIN PEAKS WEST,Monterey Heights
+4,TWIN PEAKS WEST,Mount Davidson Manor
+4,TWIN PEAKS WEST,Saint Francis Woods
+4,TWIN PEAKS WEST,Sherwood Forest
+4,TWIN PEAKS WEST,Sunnyside
+4,TWIN PEAKS WEST,West Portal
+4,TWIN PEAKS WEST,Westwood Highlands
+4,TWIN PEAKS WEST,Westwood Park
+4,TWIN PEAKS WEST,Laguna Honda
+4,TWIN PEAKS WEST,Mt. Davidson Manor
+4,TWIN PEAKS WEST,Forest Knolls
+4,TWIN PEAKS WEST,St. Francis Wood
+5,CENTRAL,Buena Vista
+5,CENTRAL,Ashbury Heights
+5,CENTRAL,Clarendon Heights
+5,CENTRAL,Cole Valley
+5,CENTRAL,Parnassus Heights
+5,CENTRAL,Corona Heights
+5,CENTRAL,Duboce Triangle
+5,CENTRAL,Eureka Valley
+5,CENTRAL,Dolores Heights
+5,CENTRAL,Glen Park
+5,CENTRAL,Haight Ashbury
+5,CENTRAL,Mission Dolores
+5,CENTRAL,Noe Valley
+5,CENTRAL,Twin Peaks
+5,CENTRAL,Castro
+5,CENTRAL,Upper Market
+5,CENTRAL,Fairmount
+6,CENTRAL NORTH,Alamo Square
+6,CENTRAL NORTH,Anza Vista
+6,CENTRAL NORTH,Hayes Valley
+6,CENTRAL NORTH,Lower Pacific Heights
+6,CENTRAL NORTH,North Panhandle
+6,CENTRAL NORTH,Western Addition
+6,CENTRAL NORTH,Laurel Heights / Jordan Park
+6,CENTRAL NORTH,Panhandle
+6,CENTRAL NORTH,Lower Haight
+6,CENTRAL NORTH,Mint Hill
+6,CENTRAL NORTH,Yerba Buena Island
+6,CENTRAL NORTH,Treasure Island
+6,CENTRAL NORTH,Cathedral Hill
+6,CENTRAL NORTH,Japantown
+7,NORTH,Cow Hollow
+7,NORTH,Marina
+7,NORTH,Pacific Heights
+7,NORTH,Presidio Heights
+7,NORTH,Union Street
+7,NORTH,Aquatic Park / Ft. Mason
+8,NORTHEAST,Downtown San Francisco
+8,NORTHEAST,Financial District
+8,NORTHEAST,Barbary Coast
+8,NORTHEAST,Nob Hill
+8,NORTHEAST,North Beach
+8,NORTHEAST,North Waterfront
+8,NORTHEAST,Russian Hill
+8,NORTHEAST,Telegraph Hill
+8,NORTHEAST,Tenderloin
+8,NORTHEAST,Van Ness
+8,NORTHEAST,Civic Center
+8,NORTHEAST,Downtown / Union Square
+8,NORTHEAST,Lower Nob Hill
+8,NORTHEAST,Northern Waterfront
+8,NORTHEAST,Fishermans Wharf
+8,NORTHEAST,Chinatown
+8,NORTHEAST,Polk Gulch
+9,CENTRAL EAST,Bernal Heights
+9,CENTRAL EAST,Central Waterfront
+9,CENTRAL EAST,Dogpatch
+9,CENTRAL EAST,Inner Mission
+9,CENTRAL EAST,Mission Bay
+9,CENTRAL EAST,Potrero Hill
+9,CENTRAL EAST,South Beach
+9,CENTRAL EAST,South of Market
+9,CENTRAL EAST,Yerba Buena
+9,CENTRAL EAST,Rincon Hill
+9,CENTRAL EAST,Showplace Square
+9,CENTRAL EAST,Mission
+9,CENTRAL EAST,Peralta Heights
+9,CENTRAL EAST,Holly Park
+9,CENTRAL EAST,St. Marys Park
+10,SOUTHEAST,Bayview
+10,SOUTHEAST,Bayview Heights
+10,SOUTHEAST,Candlestick Point
+10,SOUTHEAST,Crocker Amazon
+10,SOUTHEAST,Excelsior
+10,SOUTHEAST,Hunters Point
+10,SOUTHEAST,Little Hollywood
+10,SOUTHEAST,Mission Terrace
+10,SOUTHEAST,Outer Mission
+10,SOUTHEAST,Portola
+10,SOUTHEAST,Silver Terrace
+10,SOUTHEAST,Visitacion Valley
+10,SOUTHEAST,McLaren Park
+10,SOUTHEAST,Sunnydale
+10,SOUTHEAST,India Basin
+10,SOUTHEAST,Candlestick Point SRA
+10,SOUTHEAST,Cayuga
+10,SOUTHEAST,Apparel City
+10,SOUTHEAST,Produce Market
+10,SOUTHEAST,Bret Harte
+10,SOUTHEAST,University Mound

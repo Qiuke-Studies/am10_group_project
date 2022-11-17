@@ -113,7 +113,7 @@ districts <- read_csv('data/neighbourhoods.csv') %>%
   rename(name = neighbourhood)
 
 
-san_sf_1 <- left_join(san_sf, districts, by = "name")
+san_sf_1 <- left_join(san_sf, districts, by = "name") 
 
 
 
