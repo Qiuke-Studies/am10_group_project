@@ -41,15 +41,64 @@ library(remotes)
 library(here)
 library(nycdogs)
 library(sf) # for geospatial visualisation
+library(readr)
+library(lubridate)
 
 loadfonts(device="pdf")
 
 ```
 
 
-
-
 ```{r}
+data <- read_csv("/Users/prudn/OneDrive/Pulpit/train.csv.zip") %>% 
+  janitor::clean_names()
+
+glimpse(data)
+
+data <- data %>% 
+  mutate(year = year(dates),
+         month = month(dates),
+         day = day(dates),
+         hour = hour(dates))
+
+unemployment <- read_csv("data/unemployment.csv") %>% 
+  janitor::clean_names()
+
+
+unemployment <- unemployment %>% 
+  pivot_longer(!year, names_to = "month", values_to = "unemployment") %>% 
+  mutate(monthyear = as.Date(paste(year, month, "01"), format = "%Y %b %d"),
+         month = month(monthyear)) %>% 
+  select(year, month, unemployment)
+
+glimpse(unemployment)
+
+cpi <- read_csv("data/cpi.csv") %>% 
+  janitor::clean_names()
+
+glimpse(cpi)
+
+cpi <- cpi %>% 
+  pivot_longer(!year, names_to = "month", values_to = "cpi") %>% 
+  mutate(monthyear = as.Date(paste(year, month, "01"), format = "%Y %b %d"),
+         month = month(monthyear)) %>% 
+  select(year, month, cpi)
+
+glimpse(cpi)
+
+
+data_all <- left_join(data, unemployment, by = c("year", "month")) 
+
+data_all <- left_join(data_all, cpi, by = c("year", "month"))
+
+
+```
+
+
+
+
+
+```{r, geo data}
 san_sf <- read_sf(here("data/San_Francisco/geo_export_2f04d6c0-ba9f-4bca-9353-c633452abad2.shp"))
 
 glimpse(san_sf)
@@ -58,9 +107,24 @@ glimpse(san_sf)
 st_geometry(san_sf)
 
 
-ggplot() +
-  # draw polygons from London wards shapefile
-  geom_sf(data = san_sf, fill = "#3B454A", size = 0.125, colour = "#b2b2b277")
+# https://www.houseofkinoko.com/sf-district-guide/
+districts <- read_csv('data/neighbourhoods.csv') %>% 
+  select(district, dist_name,neighbourhood) %>% 
+  rename(name = neighbourhood)
+
+
+san_sf_1 <- left_join(san_sf, districts, by = "name")
+
+
+
+```
+
+
+```{r map chart}
+
+ggplot(data = san_sf_1, fill = factor(dist_name)) +
+  # draw polygons from San Francisco shapefile
+  geom_sf(data = san_sf_1, fill = "darkblue", size = 0.125, colour = "#b2b2b277")
 
 
 ```
