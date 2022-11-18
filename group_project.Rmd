@@ -49,6 +49,8 @@ loadfonts(device="pdf")
 ```
 
 
+# Loading and cleaning data
+
 ```{r}
 
 # Adjust data location as file is to large for github
@@ -99,6 +101,8 @@ data_all %>%
   count(category) %>% 
   arrange(desc(n))
 
+
+# change categories?
 
 ```
  
@@ -205,7 +209,9 @@ data_all <- left_join(data_all, income, by = "year")
 ```
 
 
-```{r}
+# Exploration (EDA)
+
+```{r, plot crimes}
 data_all %>% 
   group_by(year) %>% 
   summarise(count = sum(n)) %>% 
@@ -213,8 +219,16 @@ data_all %>%
   geom_col()
   
 
+#remove 2015?
+
+
 ```
 
+```{r, plots}
+
+# scatters, bar charts ??
+
+```
 
 
 
@@ -245,22 +259,6 @@ san_sf_1 <- left_join(san_sf, districts, by = "name")
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ```{r map chart}
 
 ggplot(data = san_sf_1, fill = factor(dist_name)) +
@@ -270,4 +268,18 @@ ggplot(data = san_sf_1, fill = factor(dist_name)) +
 
 ```
 
+
+
+# Linear regression
+
+```{r, model}
+
+```
+
+
+# Lasso?
+
+```{r, lasso}
+
+```
 
