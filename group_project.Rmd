@@ -50,16 +50,61 @@ loadfonts(device="pdf")
 
 
 ```{r}
+
+# Adjust data location as file is to large for github
 data <- read_csv("/Users/prudn/OneDrive/Pulpit/train.csv.zip") %>% 
   janitor::clean_names()
 
 glimpse(data)
 
+# Mutate dates
 data <- data %>% 
   mutate(year = year(dates),
          month = month(dates),
          day = day(dates),
          hour = hour(dates))
+
+# Count number of crimes
+data_all <- data %>% 
+  group_by(year, month, day, hour, day_of_week, category, pd_district, resolution) %>% 
+  count(year)
+  
+```
+
+
+```{r, resolution visualization}
+
+ggplot(data = data_all, aes(x = resolution)) +
+  geom_bar(stat = "count")
+
+# mutate resolution
+data_all <- data_all %>% 
+  mutate(resolution = ifelse(resolution == "ARREST, BOOKED" | resolution == "ARREST, CITED", "ARREST", resolution),
+         resolution = ifelse(resolution == "ARREST" | resolution == "NONE", resolution, "OTHER"))
+
+ggplot(data = data_all, aes(x = resolution)) +
+  geom_bar(stat = "count")
+
+
+
+```
+
+```{r, count by category}
+
+ggplot(data = data_all, aes(x = category)) +
+  geom_bar(stat = "count")
+
+data_all %>% 
+  group_by(category) %>% 
+  count(category) %>% 
+  arrange(desc(n))
+
+
+```
+ 
+
+```{r, load unemployment}
+# https://fred.stlouisfed.org/series/CASANF0URN 
 
 unemployment <- read_csv("data/unemployment.csv") %>% 
   janitor::clean_names()
@@ -70,8 +115,11 @@ unemployment <- unemployment %>%
   mutate(monthyear = as.Date(paste(year, month, "01"), format = "%Y %b %d"),
          month = month(monthyear)) %>% 
   select(year, month, unemployment)
+```
 
-glimpse(unemployment)
+
+```{r, load CPI}
+# https://fred.stlouisfed.org/series/CUURA422SA0
 
 cpi <- read_csv("data/cpi.csv") %>% 
   janitor::clean_names()
@@ -84,15 +132,89 @@ cpi <- cpi %>%
          month = month(monthyear)) %>% 
   select(year, month, cpi)
 
-glimpse(cpi)
+
+```
 
 
-data_all <- left_join(data, unemployment, by = c("year", "month")) 
 
-data_all <- left_join(data_all, cpi, by = c("year", "month"))
+```{r, load population}
+
+# population https://fred.stlouisfed.org/series/CASANF0POP
+pop <- read_csv("data/population.csv") %>% 
+  janitor::clean_names()
+
+glimpse(pop)
+
+
+
+pop <- pop %>% 
+  mutate(date = as.Date(date, format = "%d/%m/%Y"),
+         year = year(date)) %>% 
+  select(year, pop)
 
 
 ```
+
+
+
+
+```{r, load poverty}
+# poverty https://fred.stlouisfed.org/series/PPAACA06075A156NCEN
+
+poverty <- read_csv("data/poverty.csv") %>% 
+  janitor::clean_names()
+
+glimpse(poverty)
+
+poverty <- poverty %>% 
+  mutate(poverty_rate = as.double(poverty_rate),
+         date = as.Date(date, format = "%d/%m/%Y"),
+         year = year(date)) %>% 
+  filter(year > 2002) %>% 
+  select(year, poverty_rate)
+
+```
+
+```{r, load personal income}
+# https://fred.stlouisfed.org/series/PCPI06075
+income <- read_csv("data/personal_income.csv") %>% 
+  janitor::clean_names()
+
+glimpse(income)
+
+income <- income %>% 
+  mutate(date = as.Date(date, format = "%d/%m/%Y"),
+         year = year(date)) %>% 
+  select(year, personal_income)
+
+```
+
+
+
+```{r, join data}
+# Join data
+data_all <- left_join(data_all, unemployment, by = c("year", "month")) 
+
+data_all <- left_join(data_all, cpi, by = c("year", "month"))
+
+data_all <- left_join(data_all, pop, by = "year")
+
+data_all <- left_join(data_all, poverty, by = "year")
+
+data_all <- left_join(data_all, income, by = "year")
+```
+
+
+```{r}
+data_all %>% 
+  group_by(year) %>% 
+  summarise(count = sum(n)) %>% 
+  ggplot(aes(x = year, y = count)) +
+  geom_col()
+  
+
+```
+
 
 
 
@@ -118,6 +240,25 @@ san_sf_1 <- left_join(san_sf, districts, by = "name")
 
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ```{r map chart}
