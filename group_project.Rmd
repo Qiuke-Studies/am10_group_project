@@ -1,6 +1,6 @@
 ---
 title: "Data Visualisation Group Project"
-author: "Lucia Cai, Neha Dagade, Piotr Rudniak, Gian Marco Serra, Mingqi Yin"
+author: "Lucia Cai, Neha Dagade, Piotr Rudniak, Gian Marco Serra, Mingqi Yin, Jomal Jochan"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -211,16 +211,66 @@ data_all <- left_join(data_all, income, by = "year")
 
 # Exploration (EDA)
 
+
 ```{r, plot crimes}
+
+#which year has the highest no. of crimes
 data_all %>% 
   group_by(year) %>% 
   summarise(count = sum(n)) %>% 
   ggplot(aes(x = year, y = count)) +
-  geom_col()
-  
+  geom_line()
 
-#remove 2015?
+#which police district has the highest no. of crimes
+library(forcats)
+data_all %>% 
+  group_by(pd_district) %>% 
+  summarise(count = sum(n))%>%
+  ggplot(aes(reorder(pd_district,count), y = count,fill=pd_district))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  coord_flip() +
+  scale_fill_brewer(palette = "Set3")
+#Majority of the crimes got reported in Southernbay area.
 
+#which month has highest no. of crimes
+data_all %>% 
+  group_by(month_name) %>% 
+  summarise(count = sum(n))%>%
+  ggplot(aes(x = month_name, y = count))+
+  geom_col()+
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  #coord_flip() 
+#In all of the months, we can observe that the occurrence of the crimes roughly ranges from 60k to 80k
+
+
+#Most common crime
+data_all %>% 
+  group_by(category) %>% 
+  summarise(count = sum(n))%>%
+  ggplot(aes(reorder(category,(count)), y = count))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  coord_flip()
+
+#Hourly crime occurence
+data_all %>% 
+  group_by(hour) %>% 
+  summarise(count = sum(n))%>%
+  ggplot(aes(x = hour, y = count))+
+  geom_col()+
+  geom_text(aes(label = count), vjust = -0.1,size=3.5) 
+# We can infer that most of the crimes happen either in the evening or at midnight.
+
+
+colSums(is.na(data_all))
+#no missing data
+
+#correlation plot
+library("GGally")
+data_all %>% 
+  select(n:personal_income) %>% 
+  ggcorr(method = c("pairwise", "pearson"), label_round=2, label = TRUE, angle = -90, max_size = 4,size = 3)
 
 ```
 
@@ -228,6 +278,90 @@ data_all %>%
 
 # scatters, bar charts ??
 
+#1-Crime by year
+data_all %>% 
+  group_by(category) %>% 
+  summarise(count = sum(n))%>%
+  arrange(desc(count))%>%
+  head(10)#top 10 crimes
+
+  
+data_all%>%
+  group_by(category,year) %>% 
+  summarise(count = sum(n))%>%
+  filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC"))%>%
+  ggplot(aes(x = year, y = count,group=1)) +
+  geom_line(col="blue")+
+  facet_wrap(~category,ncol = 5)
+
+#2-Crime by hour
+ time<- function(x){ 
+    if(x>=4 & x < 12){
+      x <- "Morning"
+    }else if(x >= 12 & x < 15){
+      x <- "Noon"
+    }else if(x >= 15 & x < 18){
+      x <- "Evening"
+    }else if(x >= 18 & x < 22){
+      x <- "Night"
+    }else{
+      x <- "Midnight"
+    }
+ }
+
+data_all$hour_cat <- sapply(data_all$hour, time)
+data_all$hour_cat <- as.factor(data_all$hour_cat)
+
+crime_occurence<-data_all %>% 
+  filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC")) %>% 
+  group_by(category, hour_cat) %>% 
+  summarise(n = n())
+
+ggplot(data = crime_occurence, mapping = aes(x = n, y = reorder(category, n))) +
+  geom_col(mapping = aes(fill = hour_cat), position = "dodge") + 
+  labs(x = "Crime Count", y = NULL,
+       fill = NULL,
+       title = "Categories with Highest Total Crime in San Francisco ") +
+  scale_fill_brewer(palette = 1) +
+  theme_minimal() +
+  theme(legend.position = "top")
+    
+data_all%>%
+  group_by(hour, category) %>% 
+  summarise(count = n()) %>%
+  arrange(desc(count))%>%
+  filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC"))%>%
+  ggplot(aes(x = hour, y = count,group=1)) +
+  geom_line(col="blue")+
+  labs(title = "Frequency of top 10 types of assualt by hour", 
+       subtitle = "The graph shows which crimes are likely to occur at which hour" ,
+       caption = "Source: San Francisco Crime Data",
+       x = "Hour",
+       y = "Count of crimes occured")+
+  facet_wrap(~category,ncol = 2)
+
+#3-Crime by week
+data$day_of_week <- factor(data$day_of_week,
+                          levels = c("Monday","Tuesday","Wednesday",
+                                     "Thursday", "Friday", 
+                                     "Saturday", "Sunday"),
+                          ordered = TRUE)
+
+
+ data_all%>% 
+  group_by(day_of_week, pd_district) %>% 
+  summarise(total_crime = n())%>%
+   ggplot(aes(x = day_of_week, y = pd_district))+
+  geom_count(aes(size = total_crime), col = "#6e0000")+
+  theme_minimal()+
+  labs(
+    title = "Daily Crime in San Francisco ",
+    subtitle = "Crime count",
+    x= NULL,
+    y = "Police District"
+  )
+ 
+ 
 ```
 
 
@@ -256,14 +390,12 @@ san_sf_1 <- left_join(san_sf, districts, by = "name")
 ```
 
 
-
-
-
 ```{r map chart}
 
 ggplot(data = san_sf_1, fill = factor(dist_name)) +
   # draw polygons from San Francisco shapefile
   geom_sf(data = san_sf_1, fill = "darkblue", size = 0.125, colour = "#b2b2b277")
+
 
 
 ```
@@ -277,9 +409,52 @@ ggplot(data = san_sf_1, fill = factor(dist_name)) +
 ```
 
 
-# Lasso?
+# Word Cloud
 
 ```{r, lasso}
+# Install required packages
+install.packages(c("tm", "wordcloud","SnowballC"))
 
+# Load libraries
+library(tm)
+library(wordcloud)
+library(SnowballC)
+
+crime_desc<- Corpus(VectorSource(data_all$descript))
+inspect(crime_desc)
+
+# Strip unnecessary whitespace
+crime_desc <- tm_map(crime_desc, stripWhitespace)
+# Convert to lowercase
+crime_desc <- tm_map(crime_desc, tolower)
+# Remove conjunctions etc.
+crime_desc <- tm_map(crime_desc, removeWords, stopwords("english"))
+# Remove suffixes to the common 'stem'
+crime_desc <- tm_map(crime_desc, stemDocument)
+# Remove commas etc.
+crime_desc<- tm_map(crime_desc, removePunctuation)
+
+
+wordcloud(crime_desc
+        , scale=c(5,0.5)     # Set min and max scale
+        , max.words=100      # Set top n words
+        , random.order=FALSE # Words in decreasing freq
+        , rot.per=0.35       # % of vertical words
+        , use.r.layout=FALSE # Use C++ collision detection
+        , colors=brewer.pal(8, "Dark2"))
+
+
+
+
+
+
+
+
+
+
+# Linear regression
+
+
+
+# Lasso?
 ```
-
