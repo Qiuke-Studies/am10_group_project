@@ -49,6 +49,10 @@ library(performance)
 library(ggfortify)
 library(mosaic)
 library(GGally)
+library(caret) # to train more advanced models (k-fold cross-validation, stepwise regression, LASSO)
+library(zoo) #to allow for timeseries operations
+library(formatR)
+library(rsample) # to split dataframe in training- & testing sets
 loadfonts(device="pdf")
 
 ```
@@ -87,7 +91,7 @@ data <- data %>%
 
 # Count number of crimes
 data_all <- data %>% 
-  group_by(year, month,month_name, season_name, descript,day, hour, day_of_week, category, pd_district, resolution, x, y) %>% 
+  group_by(year, month,month_name, season_name, descript,day, hour, day_of_week, category, pd_district, resolution) %>% 
   count(year)
   
 ```
@@ -419,19 +423,19 @@ san_sf_1 <-  san_sf_1 %>%
   st_transform(4326)
 
 
-data_all <- data_all %>% 
+data <- data %>% 
   rename(lng = x,
        lat = y)
 
-data_all_sf <- st_as_sf(data_all, 
-                              coords=c('lng', 'lat'), 
-                              crs = 4326)
+data_sf <- st_as_sf(data, 
+                            coords=c('lng', 'lat'), 
+                            crs = 4326)
 
 # this takes a bit to load
 san_sf_2 <- san_sf_1 %>%
   mutate(count = lengths(
     st_contains(san_sf_1, 
-                data_all_sf))) 
+                data_sf))) 
 
 ```
 
@@ -484,26 +488,162 @@ ggplot() +
 
 # Linear regression
 
-```{r, model}
 
-model1 <- lm(n ~ 1, data= data_all)
-msummary(model1)
+```{r}
+data_model <- data_all %>% 
+  group_by(year, month, season_name, day_of_week, hour_cat, pd_district) %>% 
+  count(year)
 
-model2 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income, data= data_all)
-msummary(model2)
+data_model <- left_join(data_model, unemployment, by = c("year", "month")) 
 
-model3 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income + resolution + factor(hour) + pd_district, data= data_all)
-msummary(model3)
-vif(model3)
+data_model <- left_join(data_model, cpi, by = c("year", "month"))
+
+data_model <- left_join(data_model, pop, by = "year")
+
+data_model <- left_join(data_model, poverty, by = "year")
+
+data_model <- left_join(data_model, income, by = "year")
 
 
-model4 <- lm(n ~ day_of_week + unemployment + poverty_rate + personal_income + resolution + hour_cat + pd_district + season_name + factor(year), data= data_all)
-msummary(model4)
-
-
+data_model %>%  
+  ggcorr(method = c("pairwise", "pearson"), label_round=2, label = TRUE, angle = -90, max_size = 4,size = 3)
 
 
 ```
+
+
+
+
+```{r, model}
+
+model1 <- lm(n ~ 1, data= data_model)
+msummary(model1)
+
+model2 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income, data= data_model)
+msummary(model2)
+vif(model2)
+
+model3 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income + season_name + hour_cat, data= data_model)
+msummary(model3)
+vif(model3)
+
+model4 <- lm(n ~ day_of_week + poly(unemployment,2) + cpi + poverty_rate + personal_income + hour_cat + pd_district + season_name, data= data_model)
+msummary(model4)
+vif(model4)
+
+model5 <- lm(n ~ day_of_week + poly(unemployment,2) + poverty_rate + personal_income + hour_cat + pd_district + hour_cat*pd_district + cpi + season_name*unemployment, data= data_model)
+msummary(model5)
+
+
+
+#install.packages("jtools")
+
+library(jtools)
+effect_plot(model2, pred = poverty_rate, interval = TRUE)
+
+```
+
+
+
+```{r choosing ols model}
+#ANOVA analysis
+anova(model1, model2, model3, model4, model5)
+
+#calculation of RMSEs
+rmse_model1<- sqrt(mean(residuals(model1)^2))
+rmse_model2<- sqrt(mean(residuals(model2)^2))
+rmse_model3<- sqrt(mean(residuals(model3)^2))
+rmse_model4<- sqrt(mean(residuals(model4)^2))
+rmse_model5<- sqrt(mean(residuals(model5)^2))
+
+
+r2_1 <- summary(model1)$r.squared
+r2_2 <- summary(model2)$r.squared
+r2_3 <- summary(model3)$r.squared
+r2_4 <- summary(model4)$r.squared 
+r2_5 <- summary(model5)$r.squared 
+
+ 
+table1<- data.frame(RMSE = c(rmse_model1, rmse_model2, rmse_model3, rmse_model4, rmse_model5),
+           R_squared = c(r2_1, r2_2, r2_3, r2_4, r2_5),
+           row.names = c("Model 1", "Model 2", "Model 3", "Model 4", "Model 5"))
+
+knitr::kable(table1, row.names=TRUE)
+
+```
+
+
+```{r, splitting data}
+# splitting data into training and testing datasets
+set.seed(1234)
+train_test_split <- initial_split(data_model, prop = 0.8)
+  
+training_cpi <- training(train_test_split)
+testing_cpi <- testing(train_test_split)
+
+```
+
+
+
+```{r, lasso}
+
+control <- trainControl (
+    method="cv",
+    number=10,
+    verboseIter=TRUE)
+
+# Lambda sequence
+lambda_seq <- seq(0, 0.01, length = 1000)
+
+# lasso regression using k-fold cross validation to select the best lambda
+
+lasso_final <- train(
+ n ~ day_of_week + poly(unemployment,3) + poverty_rate + personal_income + hour_cat + pd_district + hour_cat*pd_district + poly(cpi,3) + season_name*unemployment + personal_income*pd_district, 
+ 
+ data= data_model,
+ method = "glmnet",
+  preProc = c("center", "scale"), 
+  trControl = control,
+  tuneGrid = expand.grid(alpha = 1, lambda = lambda_seq)
+  )
+
+# Model coefficients
+coef(lasso_final$finalModel, lasso_final$bestTune$lambda)
+
+# Best lambda
+lasso_final$bestTune$lambda
+
+# Count of how many coefficients are greater than zero and how many are equal to zero
+
+sum(coef(lasso_final$finalModel, lasso_final$bestTune$lambda)!=0)
+sum(coef(lasso_final$finalModel, lasso_final$bestTune$lambda)==0)
+
+# Make predictions
+predictions_lasso <- predict(lasso_final,testing_cpi)
+
+# Model prediction performance
+
+data.frame(
+  RMSE = RMSE(predictions_lasso, testing_cpi$n),
+  Rsquare = R2(predictions_lasso, testing_cpi$n)
+)
+
+```
+
+Summary of models performance:
+
+```{r summary of models performance}
+
+table2 <- data.frame(RMSE = c(rmse_model5, RMSE(predictions_lasso, testing_cpi$n)),
+           R_squared = c(r2_5, R2(predictions_lasso, testing_cpi$n)),
+           row.names = c("Model 5", "Lasso"))
+
+knitr::kable(table2, row.names=TRUE)
+
+```
+
+Based on values of RMSE and R-squared in the table above, we can conclude that the best model is the one created in LASSO regression.
+
 
 
 # Word Cloud
@@ -542,16 +682,4 @@ wordcloud(crime_desc
 
 
 
-
-
-
-
-
-
-
-# Linear regression
-
-
-
-# Lasso?
 ```
