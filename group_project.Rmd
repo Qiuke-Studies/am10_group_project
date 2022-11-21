@@ -43,7 +43,12 @@ library(nycdogs)
 library(sf) # for geospatial visualisation
 library(readr)
 library(lubridate)
-
+library(huxtable)
+library(car)
+library(performance)
+library(ggfortify)
+library(mosaic)
+library(GGally)
 loadfonts(device="pdf")
 
 ```
@@ -66,11 +71,23 @@ data <- data %>%
          month = month(dates),
          day = day(dates),
          hour = hour(dates),
-         month_name = month(dates, label=TRUE, abbr = TRUE))
+         month_name = month(dates, label=TRUE, abbr = TRUE),
+         day_of_week = factor(day_of_week,
+                              levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")),
+         season_name = case_when(
+            month_name %in%  c("Dec", "Jan", "Feb")  ~ "Winter",
+            month_name %in%  c("Mar", "Apr", "May")  ~ "Spring",
+            month_name %in%  c("Jun", "Jul", "Aug")  ~ "Summer",
+            month_name %in%  c("Sep", "Oct", "Nov")  ~ "Autumn",
+          ),
+         season_name = factor(season_name, 
+                               levels = c("Winter", "Spring", "Summer", "Autumn"))
+        )
+
 
 # Count number of crimes
 data_all <- data %>% 
-  group_by(year, month,month_name, descript,day, hour, day_of_week, category, pd_district, resolution, x, y) %>% 
+  group_by(year, month,month_name, season_name, descript,day, hour, day_of_week, category, pd_district, resolution, x, y) %>% 
   count(year)
   
 ```
@@ -214,10 +231,7 @@ data_all <- left_join(data_all, income, by = "year")
 ```
 
 
-# Exploration (EDA)
-
-
-```{r, plot crimes}
+```{r}
 
 #which year has the highest no. of crimes
 data_all %>% 
@@ -225,6 +239,17 @@ data_all %>%
   summarise(count = sum(n)) %>% 
   ggplot(aes(x = year, y = count)) +
   geom_line()
+
+data_all <- data_all %>% 
+  filter(!year == 2015)
+
+```
+
+
+# Exploration (EDA)
+
+
+```{r, plot crimes}
 
 #which police district has the highest no. of crimes
 library(forcats)
@@ -346,7 +371,7 @@ data_all%>%
   facet_wrap(~category,ncol = 2)
 
 #3-Crime by week
-data$day_of_week <- factor(data$day_of_week,
+data_all$day_of_week <- factor(data_all$day_of_week,
                           levels = c("Monday","Tuesday","Wednesday",
                                      "Thursday", "Friday", 
                                      "Saturday", "Sunday"),
@@ -402,7 +427,7 @@ data_all_sf <- st_as_sf(data_all,
                               coords=c('lng', 'lat'), 
                               crs = 4326)
 
-
+# this takes a bit to load
 san_sf_2 <- san_sf_1 %>%
   mutate(count = lengths(
     st_contains(san_sf_1, 
@@ -460,6 +485,23 @@ ggplot() +
 # Linear regression
 
 ```{r, model}
+
+model1 <- lm(n ~ 1, data= data_all)
+msummary(model1)
+
+model2 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income, data= data_all)
+msummary(model2)
+
+model3 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income + resolution + factor(hour) + pd_district, data= data_all)
+msummary(model3)
+vif(model3)
+
+
+model4 <- lm(n ~ day_of_week + unemployment + poverty_rate + personal_income + resolution + hour_cat + pd_district + season_name + factor(year), data= data_all)
+msummary(model4)
+
+
+
 
 ```
 
