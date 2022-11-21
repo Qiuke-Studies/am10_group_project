@@ -60,15 +60,17 @@ data <- read_csv("/Users/prudn/OneDrive/Pulpit/train.csv.zip") %>%
 glimpse(data)
 
 # Mutate dates
-data <- data %>% 
+data <- data %>%
+  filter(y < 80) %>% 
   mutate(year = year(dates),
          month = month(dates),
          day = day(dates),
-         hour = hour(dates))
+         hour = hour(dates),
+         month_name = month(dates, label=TRUE, abbr = TRUE))
 
 # Count number of crimes
 data_all <- data %>% 
-  group_by(year, month, day, hour, day_of_week, category, pd_district, resolution) %>% 
+  group_by(year, month,month_name, descript,day, hour, day_of_week, category, pd_district, resolution, x, y) %>% 
   count(year)
   
 ```
@@ -77,7 +79,9 @@ data_all <- data %>%
 ```{r, resolution visualization}
 
 ggplot(data = data_all, aes(x = resolution)) +
-  geom_bar(stat = "count")
+  geom_bar(stat = "count")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  coord_flip() 
 
 # mutate resolution
 data_all <- data_all %>% 
@@ -94,13 +98,14 @@ ggplot(data = data_all, aes(x = resolution)) +
 ```{r, count by category}
 
 ggplot(data = data_all, aes(x = category)) +
-  geom_bar(stat = "count")
+  geom_bar(stat = "count")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  coord_flip() 
 
 data_all %>% 
   group_by(category) %>% 
   count(category) %>% 
   arrange(desc(n))
-
 
 # change categories?
 
@@ -385,17 +390,67 @@ districts <- read_csv('data/neighbourhoods.csv') %>%
 
 san_sf_1 <- left_join(san_sf, districts, by = "name") 
 
+san_sf_1 <-  san_sf_1 %>% 
+  st_transform(4326)
 
+
+data_all <- data_all %>% 
+  rename(lng = x,
+       lat = y)
+
+data_all_sf <- st_as_sf(data_all, 
+                              coords=c('lng', 'lat'), 
+                              crs = 4326)
+
+
+san_sf_2 <- san_sf_1 %>%
+  mutate(count = lengths(
+    st_contains(san_sf_1, 
+                data_all_sf))) 
 
 ```
 
 
 ```{r map chart}
 
-ggplot(data = san_sf_1, fill = factor(dist_name)) +
-  # draw polygons from San Francisco shapefile
-  geom_sf(data = san_sf_1, fill = "darkblue", size = 0.125, colour = "#b2b2b277")
+ggplot(data = san_sf_2, aes(fill = count)) +
+  geom_sf() +
+  scale_fill_gradient(low = "#F5F5F5", high = "#00259E")
 
+ggplot(data = san_sf_2, aes(x = dist_name, y = count)) +
+  geom_col()
+
+
+ggplot() +
+  # draw polygons from London wards shapefile
+  geom_sf(data = san_sf_2, 
+          fill = "#e9eff2", 
+          size = 0.125, 
+          colour = "#b2b2b277") +
+  
+  # add points from stop-and-search shapefile
+  geom_sf(
+    data = data_all_sf, 
+    color = "black", 
+    size = 1, 
+    alpha = 0.5, 
+    shape = 21,
+    show.legend = FALSE
+  ) +
+  
+  theme_minimal()+
+  
+  theme(
+    
+    plot.title = element_text(family = "Arial", face = "bold", size = 12, hjust = 0.5), #change title font
+    
+    strip.text = element_text(family = "Arial", color = "black", face = "bold", size = 8), #change facet font
+    
+    
+  ) +
+  
+  coord_sf(datum = NA) + #remove coordinates 
+  scale_fill_brewer(palette = "Dark2") #change fill palette
 
 
 ```
