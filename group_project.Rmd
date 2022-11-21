@@ -57,10 +57,9 @@ loadfonts(device="pdf")
 
 ```
 
-
 # Loading and cleaning data
 
-```{r}
+```{r, loading data}
 
 # Adjust data location as file is to large for github
 data <- read_csv("/Users/prudn/OneDrive/Pulpit/train.csv.zip") %>% 
@@ -96,7 +95,6 @@ data_all <- data %>%
   
 ```
 
-
 ```{r, resolution visualization}
 
 ggplot(data = data_all, aes(x = resolution)) +
@@ -131,7 +129,6 @@ data_all %>%
 # change categories?
 
 ```
- 
 
 ```{r, load unemployment}
 # https://fred.stlouisfed.org/series/CASANF0URN 
@@ -146,7 +143,6 @@ unemployment <- unemployment %>%
          month = month(monthyear)) %>% 
   select(year, month, unemployment)
 ```
-
 
 ```{r, load CPI}
 # https://fred.stlouisfed.org/series/CUURA422SA0
@@ -165,8 +161,6 @@ cpi <- cpi %>%
 
 ```
 
-
-
 ```{r, load population}
 
 # population https://fred.stlouisfed.org/series/CASANF0POP
@@ -184,9 +178,6 @@ pop <- pop %>%
 
 
 ```
-
-
-
 
 ```{r, load poverty}
 # poverty https://fred.stlouisfed.org/series/PPAACA06075A156NCEN
@@ -219,8 +210,6 @@ income <- income %>%
 
 ```
 
-
-
 ```{r, join data}
 # Join data
 data_all <- left_join(data_all, unemployment, by = c("year", "month")) 
@@ -234,7 +223,6 @@ data_all <- left_join(data_all, poverty, by = "year")
 data_all <- left_join(data_all, income, by = "year")
 ```
 
-
 ```{r}
 
 #which year has the highest no. of crimes
@@ -247,11 +235,15 @@ data_all %>%
 data_all <- data_all %>% 
   filter(!year == 2015)
 
+data_all %>% 
+  group_by(year, poverty_rate, personal_income) %>% 
+  count(year)
+
+
+
 ```
 
-
 # Exploration (EDA)
-
 
 ```{r, plot crimes}
 
@@ -398,11 +390,7 @@ data_all$day_of_week <- factor(data_all$day_of_week,
  
 ```
 
-
-
-
-
-```{r, geo data}
+```{r, geo data, include=FALSE}
 san_sf <- read_sf(here("data/San_Francisco/geo_export_2f04d6c0-ba9f-4bca-9353-c633452abad2.shp"))
 
 glimpse(san_sf)
@@ -428,7 +416,7 @@ data <- data %>%
        lat = y)
 
 data_sf <- st_as_sf(data, 
-                            coords=c('lng', 'lat'), 
+                    coords=c('lng', 'lat'), 
                             crs = 4326)
 
 # this takes a bit to load
@@ -439,8 +427,7 @@ san_sf_2 <- san_sf_1 %>%
 
 ```
 
-
-```{r map chart}
+```{r map chart, include=FALSE}
 
 ggplot(data = san_sf_2, aes(fill = count)) +
   geom_sf() +
@@ -459,7 +446,7 @@ ggplot() +
   
   # add points from stop-and-search shapefile
   geom_sf(
-    data = data_all_sf, 
+    data = data_sf, 
     color = "black", 
     size = 1, 
     alpha = 0.5, 
@@ -485,11 +472,65 @@ ggplot() +
 ```
 
 
+# Word Cloud
+
+```{r, word cloud}
+# Install required packages
+#install.packages(c("tm", "wordcloud2","SnowballC"))
+
+# Load libraries
+library(tm)
+library(wordcloud2)
+library(SnowballC)
+
+crime_desc<- Corpus(VectorSource(data_all$descript))
+inspect(crime_desc)
+
+# Strip unnecessary whitespace
+crime_desc <- tm_map(crime_desc, stripWhitespace)
+# Convert to lowercase
+crime_desc <- tm_map(crime_desc, tolower)
+# Remove conjunctions etc.
+crime_desc <- tm_map(crime_desc, removeWords, stopwords("english"))
+# Remove suffixes to the common 'stem'
+#crime_desc <- tm_map(crime_desc, stemDocument)
+# Remove commas etc.
+crime_desc<- tm_map(crime_desc, removePunctuation)
+
+
+wordcloud(crime_desc
+        , scale=c(5,0.5)     # Set min and max scale
+        , max.words=100      # Set top n words
+        , random.order=FALSE # Words in decreasing freq
+        , rot.per=0.35       # % of vertical words
+        , use.r.layout=FALSE # Use C++ collision detection
+        , colors=brewer.pal(8, "Dark2"))
+
+
+devtools::install_github("lchiffon/wordcloud2")
+
+dtm <- TermDocumentMatrix(crime_desc) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+
+df <- df %>% 
+  mutate(freq = log(freq))
+
+
+letterCloud( df, word = "SF", 
+             color=rep_len( c("#001E62","#C8102E", "#DC582A", "#514689", "#0072ce", "#00685E"), nrow(df)), 
+             size = 0.4, 
+             wordSize = 6, 
+             backgroundColor="white")
+
+
+
+```
 
 # Linear regression
 
-
-```{r}
+```{r, regression, include= FALSE}
 data_model <- data_all %>% 
   group_by(year, month, season_name, day_of_week, hour_cat, pd_district) %>% 
   count(year)
@@ -511,10 +552,7 @@ data_model %>%
 
 ```
 
-
-
-
-```{r, model}
+```{r, model, include= FALSE}
 
 model1 <- lm(n ~ 1, data= data_model)
 msummary(model1)
@@ -536,16 +574,9 @@ msummary(model5)
 
 
 
-#install.packages("jtools")
-
-library(jtools)
-effect_plot(model2, pred = poverty_rate, interval = TRUE)
-
 ```
 
-
-
-```{r choosing ols model}
+```{r choosing ols model, include= FALSE}
 #ANOVA analysis
 anova(model1, model2, model3, model4, model5)
 
@@ -573,7 +604,10 @@ knitr::kable(table1, row.names=TRUE)
 ```
 
 
-```{r, splitting data}
+
+# Lasso regression
+
+```{r, splitting data, include= FALSE}
 # splitting data into training and testing datasets
 set.seed(1234)
 train_test_split <- initial_split(data_model, prop = 0.8)
@@ -583,9 +617,7 @@ testing_cpi <- testing(train_test_split)
 
 ```
 
-
-
-```{r, lasso}
+```{r, lasso, include= FALSE}
 
 control <- trainControl (
     method="cv",
@@ -619,7 +651,7 @@ sum(coef(lasso_final$finalModel, lasso_final$bestTune$lambda)!=0)
 sum(coef(lasso_final$finalModel, lasso_final$bestTune$lambda)==0)
 
 # Make predictions
-predictions_lasso <- predict(lasso_final,testing_cpi)
+predictions_lasso <- predict(lasso_final,testing_cpi, interval = "prediction")
 
 # Model prediction performance
 
@@ -628,11 +660,13 @@ data.frame(
   Rsquare = R2(predictions_lasso, testing_cpi$n)
 )
 
+coef(lasso_final$finalModel, lasso_final$bestTune$lambda)
+
 ```
 
 Summary of models performance:
 
-```{r summary of models performance}
+```{r summary of models performance, include= FALSE}
 
 table2 <- data.frame(RMSE = c(rmse_model5, RMSE(predictions_lasso, testing_cpi$n)),
            R_squared = c(r2_5, R2(predictions_lasso, testing_cpi$n)),
@@ -640,46 +674,9 @@ table2 <- data.frame(RMSE = c(rmse_model5, RMSE(predictions_lasso, testing_cpi$n
 
 knitr::kable(table2, row.names=TRUE)
 
+
 ```
 
 Based on values of RMSE and R-squared in the table above, we can conclude that the best model is the one created in LASSO regression.
 
 
-
-# Word Cloud
-
-```{r, lasso}
-# Install required packages
-install.packages(c("tm", "wordcloud","SnowballC"))
-
-# Load libraries
-library(tm)
-library(wordcloud)
-library(SnowballC)
-
-crime_desc<- Corpus(VectorSource(data_all$descript))
-inspect(crime_desc)
-
-# Strip unnecessary whitespace
-crime_desc <- tm_map(crime_desc, stripWhitespace)
-# Convert to lowercase
-crime_desc <- tm_map(crime_desc, tolower)
-# Remove conjunctions etc.
-crime_desc <- tm_map(crime_desc, removeWords, stopwords("english"))
-# Remove suffixes to the common 'stem'
-crime_desc <- tm_map(crime_desc, stemDocument)
-# Remove commas etc.
-crime_desc<- tm_map(crime_desc, removePunctuation)
-
-
-wordcloud(crime_desc
-        , scale=c(5,0.5)     # Set min and max scale
-        , max.words=100      # Set top n words
-        , random.order=FALSE # Words in decreasing freq
-        , rot.per=0.35       # % of vertical words
-        , use.r.layout=FALSE # Use C++ collision detection
-        , colors=brewer.pal(8, "Dark2"))
-
-
-
-```
