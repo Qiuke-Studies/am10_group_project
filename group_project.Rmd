@@ -21,8 +21,8 @@ options(digits = 3)
 
 # default figure size
 knitr::opts_chunk$set(
-  fig.width = 6.75, 
-  fig.height = 6.75,
+  fig.width = 14, 
+  fig.height = 8,
   fig.align = "center"
 )
 ```
@@ -91,7 +91,9 @@ data <- data %>%
 # Count number of crimes
 data_all <- data %>% 
   group_by(year, month,month_name, season_name, descript,day, hour, day_of_week, category, pd_district, resolution) %>% 
-  count(year)
+  count(year) %>% 
+  filter(!year == 2015)
+
   
 ```
 
@@ -223,25 +225,77 @@ data_all <- left_join(data_all, poverty, by = "year")
 data_all <- left_join(data_all, income, by = "year")
 ```
 
-```{r}
+```{r, most similar year}
 
-#which year has the highest no. of crimes
-data_all %>% 
-  group_by(year) %>% 
-  summarise(count = sum(n)) %>% 
-  ggplot(aes(x = year, y = count)) +
-  geom_line()
+# Poverty rate - latest data 2020 - 10%
 
-data_all <- data_all %>% 
-  filter(!year == 2015)
+# CPI - latest data Sep 2022 - 6.0%
 
-data_all %>% 
-  group_by(year, poverty_rate, personal_income) %>% 
-  count(year)
+# Unemployment - latest data Sep 2022 - 2.1%
 
 
+data_line <- data_all %>% 
+  group_by(year, month_name, poverty_rate, personal_income) %>% 
+  summarise(n = count(year),
+         cpi = mean(cpi),
+         unemployment = mean(unemployment))
+
+
+
+diffs <- data_all %>% 
+  group_by(year, poverty_rate) %>% 
+  summarise(n = count(year),
+         cpi = mean(cpi),
+         unemployment = mean(unemployment)) %>% 
+  mutate(cpi_diff = cpi - 6.0,
+         unemployment_diff = unemployment - 2.1,
+         poverty_rate_diff = poverty_rate - 10,
+         min_diffs = sum(cpi_diff, unemployment_diff, poverty_rate_diff))
+
+diffs <- diffs %>% 
+  mutate(is_min = ifelse(min_diffs == min(diffs$min_diffs), 1, 0)) %>% 
+  select(year, is_min)
+
+
+data_line <- left_join(data_line, diffs, by = "year")
+
+
+rectangle <- data_line %>% 
+  filter(year == 2007)
+
+ggplot(data = data_line) +
+  geom_line(aes(x = month_name, y = n, group = factor(year), color = factor(is_min))) +
+  
+  geom_rect(
+    fill = "lightgrey", alpha = 0.3, 
+    mapping = aes(x = month_name, y = n),
+        xmin = "Mar", xmax = "Apr",
+        ymin = -Inf, ymax = Inf,
+        data = rectangle[1,]) +
+  
+  
+  theme_minimal() +
+  theme(
+    
+    panel.grid.major.x = element_blank(), #remove grids
+    panel.grid.minor.x = element_blank(), #remove grids
+    panel.grid.minor.y = element_blank(), #remove grids
+    
+    legend.position = "none", #remove legend
+    
+    
+    axis.title.x = element_blank(), #change font of x axis title
+    axis.title.y = element_blank() #change font of y axis title
+  
+  ) +
+  
+  scale_color_manual(values = c("#EBE8E5", "#001E62"))
 
 ```
+
+
+
+
 
 # Exploration (EDA)
 
