@@ -53,7 +53,9 @@ library(caret) # to train more advanced models (k-fold cross-validation, stepwis
 library(zoo) #to allow for timeseries operations
 library(formatR)
 library(rsample) # to split dataframe in training- & testing sets
-loadfonts(device="pdf")
+library(sysfonts)
+loadfonts(device="win")
+font_add_google("Montserrat", "Montserrat")
 
 ```
 
@@ -99,18 +101,18 @@ data_all <- data %>%
 
 ```{r, resolution visualization}
 
-ggplot(data = data_all, aes(x = resolution)) +
-  geom_bar(stat = "count")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  coord_flip() 
+#ggplot(data = data_all, aes(x = resolution)) +
+#  geom_bar(stat = "count")+
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+#  coord_flip() 
 
 # mutate resolution
 data_all <- data_all %>% 
   mutate(resolution = ifelse(resolution == "ARREST, BOOKED" | resolution == "ARREST, CITED", "ARREST", resolution),
          resolution = ifelse(resolution == "ARREST" | resolution == "NONE", resolution, "OTHER"))
 
-ggplot(data = data_all, aes(x = resolution)) +
-  geom_bar(stat = "count")
+#ggplot(data = data_all, aes(x = resolution)) +
+#  geom_bar(stat = "count")
 
 
 
@@ -118,15 +120,15 @@ ggplot(data = data_all, aes(x = resolution)) +
 
 ```{r, count by category}
 
-ggplot(data = data_all, aes(x = category)) +
-  geom_bar(stat = "count")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  coord_flip() 
+#ggplot(data = data_all, aes(x = category)) +
+#  geom_bar(stat = "count")+
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+#  coord_flip() 
 
-data_all %>% 
-  group_by(category) %>% 
-  count(category) %>% 
-  arrange(desc(n))
+#data_all %>% 
+#  group_by(category) %>% 
+#  count(category) %>% 
+#  arrange(desc(n))
 
 # change categories?
 
@@ -273,8 +275,10 @@ data_line <- left_join(data_line, diffs, by = "year")
 rectangle <- data_line %>% 
   filter(year == 2014)
 
+
+
 ggplot(data = data_line) +
-  geom_line(aes(x = month_name, y = n, group = factor(year), color = factor(is_min))) +
+  geom_line(aes(x = month_name, y = n, group = factor(year), color = factor(is_min), size = factor(is_min))) +
   
   geom_rect(
     fill = "lightgrey", alpha = 0.3, 
@@ -291,15 +295,23 @@ ggplot(data = data_line) +
     panel.grid.minor.x = element_blank(), #remove grids
     panel.grid.minor.y = element_blank(), #remove grids
     
-    legend.position = "none", #remove legend
-    
+    legend.position = c(0.9, 0.95), #remove legend
+    legend.text =  element_text(size = 14),
     
     axis.title.x = element_blank(), #change font of x axis title
-    axis.title.y = element_blank() #change font of y axis title
-  
+    axis.title.y = element_blank(), #change font of y axis title
+    
+    axis.text.x = element_text(face = "bold", size = 14),
+    axis.text.y = element_text(size = 14)
+    
+    
   ) +
   
-  scale_color_manual(values = c("#EBE8E5", "#001E62"))
+  scale_color_manual(name = "", values = c("#d6d4d2", "#001E62"), labels = c("2003-2013", "2014")) +
+  scale_size_manual(values = c(0.1, 1.2), name = "",  labels = c("2003-2013", "2014")) +
+  scale_y_continuous(labels=scales::comma) 
+
+
 
 ```
 
@@ -482,6 +494,9 @@ data <- data %>%
 data_sf <- st_as_sf(data, 
                     coords=c('lng', 'lat'), 
                             crs = 4326)
+data_sf <- data_sf %>% 
+  filter(year == 2014)
+
 
 # this takes a bit to load
 san_sf_2 <- san_sf_1 %>%
@@ -493,47 +508,23 @@ san_sf_2 <- san_sf_1 %>%
 
 ```{r map chart, include=FALSE}
 
-ggplot(data = san_sf_2, aes(fill = count)) +
-  geom_sf() +
-  scale_fill_gradient(low = "#F5F5F5", high = "#00259E")
-
-ggplot(data = san_sf_2, aes(x = dist_name, y = count)) +
-  geom_col()
 
 
-ggplot() +
-  # draw polygons from London wards shapefile
-  geom_sf(data = san_sf_2, 
-          fill = "#e9eff2", 
-          size = 0.125, 
-          colour = "#b2b2b277") +
-  
-  # add points from stop-and-search shapefile
-  geom_sf(
-    data = data_sf, 
-    color = "black", 
-    size = 1, 
-    alpha = 0.5, 
-    shape = 21,
-    show.legend = FALSE
-  ) +
-  
+map <- ggplot() +
+  geom_sf(data = san_sf_2, aes(fill = count), colour = "transparent") +
+  geom_sf(data = san_sf_2, aes(colour = district), fill = "transparent", colour = "white") +
+  scale_fill_gradient(low = "#EBE8E5", high = "#C8102E") +
   theme_minimal()+
-  
-  theme(
-    
-    plot.title = element_text(family = "Arial", face = "bold", size = 12, hjust = 0.5), #change title font
-    
-    strip.text = element_text(family = "Arial", color = "black", face = "bold", size = 8), #change facet font
-    
-    
-  ) +
-  
-  coord_sf(datum = NA) + #remove coordinates 
-  scale_fill_brewer(palette = "Dark2") #change fill palette
+  coord_sf(datum = NA) #remove coordinates 
+
+
 
 
 ```
+
+
+
+
 
 
 # Word Cloud
@@ -591,6 +582,13 @@ letterCloud( df, word = "SF",
 
 
 ```
+
+
+
+
+
+
+
 
 # Linear regression
 
