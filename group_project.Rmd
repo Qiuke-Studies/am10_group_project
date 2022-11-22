@@ -447,12 +447,18 @@ ggplot(data = data_line) +
 map <- ggplot() +
   geom_sf(data = san_sf_2, aes(fill = count), colour = "transparent") +
   geom_sf(data = san_sf_2, aes(colour = district), fill = "transparent", colour = "white") +
-  scale_fill_gradient(low = "#EBE8E5", high = "#C8102E") +
+  scale_fill_gradient(low = "#6DAEE3", high = "#C8102E", name = "Number of crimes") +
   theme_minimal()+
-  coord_sf(datum = NA) #remove coordinates 
+  theme(
+    legend.title = element_text(face = "bold", size = 14),
+    legend.text = element_text(size = 14)
+    
+  ) +
+  coord_sf(datum = NA) 
 
 
 map
+
 
 ```
 
@@ -468,19 +474,50 @@ top_crime_category_2014 <- data_sf_trans_2014_som %>%
   slice_max(order_by = count, n = 10) %>%
   mutate(top = ifelse(category == "LARCENY/THEFT",
                       yes = "Yes",
-                      no = "No"))
+                      no = "No")) %>%
+  mutate(category = ifelse(category == "LARCENY/THEFT",
+                           yes = "THEFT",
+                           no = category),
+         category = ifelse(category == "DRUG/NARCOTIC",
+                           yes = "DRUG",
+                           no = category),
+         category = ifelse(category == "OTHER OFFENSES",
+                           yes = "OTHER",
+                           no = category)) %>%
+  mutate(category = tolower(category)) %>%
+  mutate(category = str_to_title(category))
 
-my_colours <- c("#001E62", "#C8102E")
+my_colours <- c("lightgrey", "#C8102E")
 
 bar_chart <- 
 ggplot(data = top_crime_category_2014,
        aes(x = count, y = fct_reorder(category, count), fill = top)) +
   geom_col() +
+  geom_text(
+    aes(label = count, x = count + 200),
+    colour = "black",
+    size = 5,
+    hjust = 1,
+    fontface = "bold"
+  ) +
   scale_fill_manual(values = my_colours) +
   theme_minimal() +
-  labs(y = "Crime Category",
-       x = "Crime Count") +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+
+    axis.title.x = element_blank(), #change font of x axis title
+    axis.title.y = element_blank(), #change font of y axis title
+    
+    axis.text.y = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 14),
+    
+    text = element_text(size = 14),
+    
+    panel.grid.major.y = element_blank(), #remove grids
+    panel.grid.minor.x = element_blank(), #remove grids
+    panel.grid.minor.y = element_blank() #remove grids
+  ) +
+  scale_x_continuous(labels = scales::comma) 
+
 
 bar_chart
 
@@ -488,8 +525,188 @@ bar_chart
 
 
 
-# Plot 5 - Crime by week
+# Plot 5 - Crime by week and time
 
+
+```{r, time}
+time<- function(x){ 
+    if(x>=4 & x < 12){
+      x <- "Morning"
+    }else if(x >= 12 & x < 15){
+      x <- "Noon"
+    }else if(x >= 15 & x < 18){
+      x <- "Evening"
+    }else if(x >= 18 & x < 22){
+      x <- "Night"
+    }else{
+      x <- "Midnight"
+    }
+ }
+
+
+data_sf_trans_2014_som_theft <- data_sf_trans_2014_som %>% 
+  filter(category == "LARCENY/THEFT")
+
+
+
+data_sf_trans_2014_som_theft$hour_cat <- sapply(data_sf_trans_2014_som_theft$hour, time)
+data_sf_trans_2014_som_theft$hour_cat <-factor(data_sf_trans_2014_som_theft$hour_cat,
+                                               levels = c("Morning","Noon","Evening","Night", "Midnight"), ordered=TRUE)
+
+data_sf_trans_2014_som_theft$hour_cat <- as.factor(data_sf_trans_2014_som_theft$hour_cat)
+
+data_sf_trans_2014_som_theft$day_of_week <- factor(data_sf_trans_2014_som_theft$day_of_week,
+                          levels = c("Monday","Tuesday","Wednesday",
+                                     "Thursday", "Friday", 
+                                     "Saturday", "Sunday"),
+                          ordered = TRUE)
+
+
+ data_sf_trans_2014_som_theft %>% 
+   filter(category=="LARCENY/THEFT") %>%
+  group_by(day_of_week, hour_cat) %>% 
+  summarise(total_crime = n()) %>% 
+   
+   ggplot(aes(x = day_of_week, y = hour_cat))+
+   
+  geom_count(aes(size = as.integer(total_crime), col = total_crime))+
+   
+  theme_minimal()+
+   
+  labs(
+    #title = "When to watch out for thieves?? ",
+    x= NULL,
+    y = NULL
+  )   +
+   
+    scale_x_discrete(limits = c("Monday","Tuesday","Wednesday",
+                                     "Thursday", "Friday", 
+                                     "Saturday", "Sunday"))+
+   
+   scale_y_discrete(limits = c("Midnight","Night","Evening","Noon","Morning")) +
+   
+   scale_colour_gradient2(name = "Number of crimes",
+                          mid = "white",
+                          midpoint = 0,
+                          space = "Lab",
+                          na.value = "grey50",
+                          guide = "colourbar",
+                          aesthetics = "colour") +
+   guides(size = guide_legend(title = "Size"))  +
+    theme(
+ #     legend.title = element_blank(),
+      axis.text = element_text(size = 14, face = "bold"),
+      legend.title = element_text(size = 16, face = "bold"),
+      legend.text = element_text(size = 14),
+      
+      text=element_text(size=16)
+      
+      )
+ 
+```
+
+
+
+# Plot 6 - Crime by street
+
+```{r, Crime by street}
+
+data_sf_trans_2014_som_theft_day <- data_sf_trans_2014_som_theft %>% 
+  filter(day_of_week == "Saturday", hour_cat == "Night") %>% 
+  group_by(address)%>%
+  summarise(n = n())%>%
+  mutate(
+    is_max = ifelse(address == "800 Block of BRYANT ST", 1, 0)
+  ) %>% 
+   arrange(desc(n)) %>%
+   head(10) 
+  
+
+data_sf_trans_2014_som_theft_day %>% 
+   ggplot(aes(y = reorder(address,n),x=n)) +
+  
+  geom_col(aes(fill = as.factor(is_max))) +
+  
+  geom_text(aes(label = n, x = n + 1),
+             hjust = -0.1,
+             size=6,
+             fontface = "bold") +
+  
+  labs(
+    #title = "DONT GO THERE OR SOMEONE WILL STEAL SMTH FROM YOU!" ,
+       x = NULL,
+       y = NULL) +
+  
+  theme_minimal() +
+  
+  theme(
+    axis.text.y = element_text(size = 14, face = "bold"),
+    axis.text.x = element_text(size = 14),
+    
+    panel.grid.major.y = element_blank(), #remove grids
+    panel.grid.minor.x = element_blank(), #remove grids
+    panel.grid.minor.y = element_blank(), #remove grids
+    
+    legend.position = "None"
+    
+  ) +
+  scale_fill_manual(values = my_colours) 
+
+
+
+```
+
+
+
+
+
+
+# Plot 7 - where crimes are most likely to occur [NOT INCLUDED]
+
+```{r, where crimes are most}
+
+data_sf_trans_2014_som_theft_day <- data_sf_trans_2014_som_theft %>% 
+  filter(day_of_week == "Saturday", hour_cat == "Night")
+
+
+#where crimes are most likely to occur
+library(tidyr) 
+library(data.table)
+ add_data<- data_sf_trans_2014_som_theft_day %>%
+  separate(address, c("add1", "add2"), "/")%>%
+   select(add1, add2)
+ 
+add_data$add1 <- trimws(add_data$add1, which = c("right"))
+add_data$add1<-str_extract(add_data$add1, '\\w+$')
+
+add_data$add2 <- trimws(add_data$add2, which = c("right"))
+add_data$add2<-str_extract(add_data$add2, '\\w+$')
+
+
+add_type<-rbind(add_data[,ncol(add_data)-1],setnames((add_data[,ncol(add_data)]),names(add_data[,ncol(add_data)-1])))
+
+add_type%>%
+  filter(!is.na(add1)) %>%
+  group_by(add1)%>%
+  summarise(count = sum(n))
+
+
+add_type%>%
+  group_by(add1)%>%
+  summarise(n = n())%>%
+  arrange(desc(n))%>%
+  filter(!add1=="NA")%>%
+  ggplot(aes(reorder(add1,n),y=n))+
+  geom_col(fill="#00685E")+
+  coord_flip()+
+  labs(title = "Where are crimes most likly to occur?" ,
+       x = "Crime count",
+       y = "Adress")
+
+```
+
+
+# Plot 8 - Crime by week [NOT INCLUDED]
 
 
 ```{r, Crime by week}
@@ -533,13 +750,10 @@ data$day_of_week <- factor(data_sf_trans_2014_som_theft$day_of_week,
 ```
 
 
-# Plot 6 - Crime by hour
+
+# Plot 9 - Crime by hour [NOT INCLUDED]
 
 ```{r, Crime by hour}
-
-# new dataset for day
-#data_sf_trans_2014_som_theft_day
-
 
 
 #-Crime by hour
@@ -577,56 +791,6 @@ ggplot(data = crime_occurence, mapping = aes(x = n, y = reorder(category, n))) +
 
 
 ```
-
-# Plot 7 - where crimes are most likely to occur
-
-```{r, where crimes are most}
-
-# new dataset for day
-#data_sf_trans_2014_som_theft_day
-
-#where crimes are most likely to occur
-library(tidyr) 
-library(data.table)
- add_data<- data_all %>%
-  separate(address, c("add1", "add2"), "/")%>%
-   select(add1, add2)
- 
-add_data$add1 <- trimws(add_data$add1, which = c("right"))
-add_data$add1<-str_extract(add_data$add1, '\\w+$')
-
-add_data$add2 <- trimws(add_data$add2, which = c("right"))
-add_data$add2<-str_extract(add_data$add2, '\\w+$')
-
-
-add_type<-rbind(add_data[,ncol(add_data)-1],setnames((add_data[,ncol(add_data)]),names(add_data[,ncol(add_data)-1])))
-
-add_type%>%
-  filter(!is.na(add1)) %>%
-  group_by(add1)%>%
-  summarise(count = sum(n))
-
-
-add_type%>%
-  group_by(add1)%>%
-  summarise(n = n())%>%
-  arrange(desc(n))%>%
-  filter(!add1=="NA")%>%
-  ggplot(aes(reorder(add1,n),y=n))+
-  geom_col(fill="#00685E")+
-  coord_flip()+
-  labs(title = "Where are crimes most likly to occur?" ,
-       x = "Crime count",
-       y = "Adress")
-
-```
-
-
-
-
-
-
-
 
 
 
