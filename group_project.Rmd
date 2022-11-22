@@ -234,6 +234,136 @@ data_all <- left_join(data_all, poverty, by = "year")
 data_all <- left_join(data_all, income, by = "year")
 ```
 
+
+
+# Cleaning geo data
+
+```{r, geo data, include=FALSE}
+san_sf <- read_sf(here("data/San_Francisco/geo_export_2f04d6c0-ba9f-4bca-9353-c633452abad2.shp"))
+
+glimpse(san_sf)
+
+# what type of geometry does our shapefile have?
+st_geometry(san_sf)
+
+
+# https://www.houseofkinoko.com/sf-district-guide/
+districts <- read_csv('data/neighbourhoods.csv') %>% 
+  select(district, dist_name,neighbourhood) %>% 
+  rename(name = neighbourhood)
+
+
+san_sf_1 <- left_join(san_sf, districts, by = "name") 
+
+san_sf_1 <-  san_sf_1 %>% 
+  st_transform(4326)
+
+
+data <- data %>% 
+  rename(lng = x,
+       lat = y)
+
+data_sf <- st_as_sf(data, 
+                    coords=c('lng', 'lat'), 
+                            crs = 4326)
+data_sf <- data_sf %>% 
+  filter(year == 2014)
+
+
+# this takes a bit to load
+san_sf_2 <- san_sf_1 %>%
+  mutate(count = lengths(
+    st_contains(san_sf_1, 
+                data_sf))) 
+
+
+san_sf_3 <- san_sf_2 %>% 
+  filter(name == "South of Market")
+
+
+data_sf_trans <- st_transform(data_sf, 2163)
+san_sf_3_trans <- st_transform(san_sf_3, 2163)
+
+
+data_sf_trans <- data_sf_trans %>% 
+  mutate(
+  intersection = as.integer(st_intersects( data_sf_trans,san_sf_3_trans)))
+
+data_sf_trans <-data_sf_trans %>% 
+  filter(intersection == 1)
+
+
+```
+
+
+
+
+# Plot 1 - Word Cloud
+
+
+```{r, word cloud}
+# Install required packages
+#install.packages(c("tm", "wordcloud2","SnowballC"))
+
+# Load libraries
+library(tm)
+library(wordcloud2)
+library(SnowballC)
+
+crime_desc<- Corpus(VectorSource(data_all$descript))
+inspect(crime_desc)
+
+# Strip unnecessary whitespace
+crime_desc <- tm_map(crime_desc, stripWhitespace)
+# Convert to lowercase
+crime_desc <- tm_map(crime_desc, tolower)
+# Remove conjunctions etc.
+crime_desc <- tm_map(crime_desc, removeWords, stopwords("english"))
+# Remove suffixes to the common 'stem'
+#crime_desc <- tm_map(crime_desc, stemDocument)
+# Remove commas etc.
+crime_desc<- tm_map(crime_desc, removePunctuation)
+
+
+wordcloud(crime_desc
+        , scale=c(5,0.5)     # Set min and max scale
+        , max.words=100      # Set top n words
+        , random.order=FALSE # Words in decreasing freq
+        , rot.per=0.35       # % of vertical words
+        , use.r.layout=FALSE # Use C++ collision detection
+        , colors=brewer.pal(8, "Dark2"))
+
+
+devtools::install_github("lchiffon/wordcloud2")
+
+dtm <- TermDocumentMatrix(crime_desc) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+
+df <- df %>% 
+  mutate(freq = log(freq))
+
+
+letterCloud( df, word = "SF", 
+             color=rep_len( c("#001E62","#C8102E", "#DC582A", "#514689", "#0072ce", "#00685E"), nrow(df)), 
+             size = 0.4, 
+             wordSize = 6, 
+             backgroundColor="white")
+
+
+
+```
+
+
+
+
+
+
+# Plot 2 - Most similar Year
+
+
+
 ```{r, most similar year}
 
 # Poverty rate - latest data 2020 - 10%
@@ -317,86 +447,79 @@ ggplot(data = data_line) +
 
 
 
+# Plot 3 - Map of total crimes in 2014
 
 
-# Exploration (EDA)
+```{r map chart, include=FALSE}
 
-```{r, plot crimes}
-
-#which police district has the highest no. of crimes
-library(forcats)
-data_all %>% 
-  group_by(pd_district) %>% 
-  summarise(count = sum(n))%>%
-  ggplot(aes(reorder(pd_district,count), y = count,fill=pd_district))+
-  geom_col()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  coord_flip() +
-  scale_fill_brewer(palette = "Set3")
-#Majority of the crimes got reported in Southernbay area.
-
-#which month has highest no. of crimes
-data_all %>% 
-  group_by(month_name) %>% 
-  summarise(count = sum(n))%>%
-  ggplot(aes(x = month_name, y = count))+
-  geom_col()+
-  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  #coord_flip() 
-#In all of the months, we can observe that the occurrence of the crimes roughly ranges from 60k to 80k
+map <- ggplot() +
+  geom_sf(data = san_sf_2, aes(fill = count), colour = "transparent") +
+  geom_sf(data = san_sf_2, aes(colour = district), fill = "transparent", colour = "white") +
+  scale_fill_gradient(low = "#EBE8E5", high = "#C8102E") +
+  theme_minimal()+
+  coord_sf(datum = NA) #remove coordinates 
 
 
-#Most common crime
-data_all %>% 
-  group_by(category) %>% 
-  summarise(count = sum(n))%>%
-  ggplot(aes(reorder(category,(count)), y = count))+
-  geom_col()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  coord_flip()
 
-#Hourly crime occurence
-data_all %>% 
-  group_by(hour) %>% 
-  summarise(count = sum(n))%>%
-  ggplot(aes(x = hour, y = count))+
-  geom_col()+
-  geom_text(aes(label = count), vjust = -0.1,size=3.5) 
-# We can infer that most of the crimes happen either in the evening or at midnight.
-
-
-colSums(is.na(data_all))
-#no missing data
-
-#correlation plot
-library("GGally")
-data_all %>% 
-  select(n:personal_income) %>% 
-  ggcorr(method = c("pairwise", "pearson"), label_round=2, label = TRUE, angle = -90, max_size = 4,size = 3)
 
 ```
 
-```{r, plots}
 
-# scatters, bar charts ??
+# Plot 4 - Bar chart top categories of crime at the most dangerous location
 
-#1-Crime by year
-data_all %>% 
-  group_by(category) %>% 
-  summarise(count = sum(n))%>%
-  arrange(desc(count))%>%
-  head(10)#top 10 crimes
 
-  
-data_all%>%
-  group_by(category,year) %>% 
-  summarise(count = sum(n))%>%
-  filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC"))%>%
-  ggplot(aes(x = year, y = count,group=1)) +
-  geom_line(col="blue")+
-  facet_wrap(~category,ncol = 5)
+```{r,  Bar chart top categories of crime}
 
-#2-Crime by hour
+
+
+```
+
+
+
+# Plot 5 - Crime by week
+
+
+
+```{r, Crime by week}
+#-Crime by week
+data$day_of_week <- factor(data$day_of_week,
+                          levels = c("Monday","Tuesday","Wednesday",
+                                     "Thursday", "Friday", 
+                                     "Saturday", "Sunday"),
+                          ordered = TRUE)
+
+
+ data_all%>% 
+  group_by(day_of_week, category) %>% 
+  summarise(total_crime = n())%>%
+   filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC"))%>%
+   ggplot(aes(x = day_of_week, y = category))+
+  geom_count(aes(size = total_crime, col = total_crime))+
+  theme_minimal()+
+  labs(
+    title = "Daily Crime in San Francisco ",
+    x= NULL,
+    y = "Police District"
+  )+
+    scale_x_discrete(limits = c("Monday","Tuesday","Wednesday",
+                                     "Thursday", "Friday", 
+                                     "Saturday", "Sunday"))+
+   scale_y_discrete(limits = c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC"))+
+   scale_colour_gradient2(
+  mid = "white",
+  midpoint = 0,
+  space = "Lab",
+  na.value = "grey50",
+  guide = "colourbar",
+  aesthetics = "colour")
+```
+
+
+# Plot 6 Crime by hour
+
+```{r, Crime by hour}
+
+#-Crime by hour
  time<- function(x){ 
     if(x>=4 & x < 12){
       x <- "Morning"
@@ -412,8 +535,9 @@ data_all%>%
  }
 
 data_all$hour_cat <- sapply(data_all$hour, time)
+data_all$hour_cat <-factor(data_all$hour_cat,levels = c("Morning","Noon","Evening",
+                                     "Night", "Midnight"), ordered=TRUE)
 data_all$hour_cat <- as.factor(data_all$hour_cat)
-
 crime_occurence<-data_all %>% 
   filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC")) %>% 
   group_by(category, hour_cat) %>% 
@@ -423,162 +547,10 @@ ggplot(data = crime_occurence, mapping = aes(x = n, y = reorder(category, n))) +
   geom_col(mapping = aes(fill = hour_cat), position = "dodge") + 
   labs(x = "Crime Count", y = NULL,
        fill = NULL,
-       title = "Categories with Highest Total Crime in San Francisco ") +
+       title = "When is San Francisco most unsafe and for which type of crime? ") +
   scale_fill_brewer(palette = 1) +
   theme_minimal() +
   theme(legend.position = "top")
-    
-data_all%>%
-  group_by(hour, category) %>% 
-  summarise(count = n()) %>%
-  arrange(desc(count))%>%
-  filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC"))%>%
-  ggplot(aes(x = hour, y = count,group=1)) +
-  geom_line(col="blue")+
-  labs(title = "Frequency of top 10 types of assualt by hour", 
-       subtitle = "The graph shows which crimes are likely to occur at which hour" ,
-       caption = "Source: San Francisco Crime Data",
-       x = "Hour",
-       y = "Count of crimes occured")+
-  facet_wrap(~category,ncol = 2)
-
-#3-Crime by week
-data_all$day_of_week <- factor(data_all$day_of_week,
-                          levels = c("Monday","Tuesday","Wednesday",
-                                     "Thursday", "Friday", 
-                                     "Saturday", "Sunday"),
-                          ordered = TRUE)
-
-
- data_all%>% 
-  group_by(day_of_week, pd_district) %>% 
-  summarise(total_crime = n())%>%
-   ggplot(aes(x = day_of_week, y = pd_district))+
-  geom_count(aes(size = total_crime), col = "#6e0000")+
-  theme_minimal()+
-  labs(
-    title = "Daily Crime in San Francisco ",
-    subtitle = "Crime count",
-    x= NULL,
-    y = "Police District"
-  )
- 
- 
-```
-
-```{r, geo data, include=FALSE}
-san_sf <- read_sf(here("data/San_Francisco/geo_export_2f04d6c0-ba9f-4bca-9353-c633452abad2.shp"))
-
-glimpse(san_sf)
-
-# what type of geometry does our shapefile have?
-st_geometry(san_sf)
-
-
-# https://www.houseofkinoko.com/sf-district-guide/
-districts <- read_csv('data/neighbourhoods.csv') %>% 
-  select(district, dist_name,neighbourhood) %>% 
-  rename(name = neighbourhood)
-
-
-san_sf_1 <- left_join(san_sf, districts, by = "name") 
-
-san_sf_1 <-  san_sf_1 %>% 
-  st_transform(4326)
-
-
-data <- data %>% 
-  rename(lng = x,
-       lat = y)
-
-data_sf <- st_as_sf(data, 
-                    coords=c('lng', 'lat'), 
-                            crs = 4326)
-data_sf <- data_sf %>% 
-  filter(year == 2014)
-
-
-# this takes a bit to load
-san_sf_2 <- san_sf_1 %>%
-  mutate(count = lengths(
-    st_contains(san_sf_1, 
-                data_sf))) 
-
-```
-
-```{r map chart, include=FALSE}
-
-
-
-map <- ggplot() +
-  geom_sf(data = san_sf_2, aes(fill = count), colour = "transparent") +
-  geom_sf(data = san_sf_2, aes(colour = district), fill = "transparent", colour = "white") +
-  scale_fill_gradient(low = "#EBE8E5", high = "#C8102E") +
-  theme_minimal()+
-  coord_sf(datum = NA) #remove coordinates 
-
-
-
-
-```
-
-
-
-
-
-
-# Word Cloud
-
-```{r, word cloud}
-# Install required packages
-#install.packages(c("tm", "wordcloud2","SnowballC"))
-
-# Load libraries
-library(tm)
-library(wordcloud2)
-library(SnowballC)
-
-crime_desc<- Corpus(VectorSource(data_all$descript))
-inspect(crime_desc)
-
-# Strip unnecessary whitespace
-crime_desc <- tm_map(crime_desc, stripWhitespace)
-# Convert to lowercase
-crime_desc <- tm_map(crime_desc, tolower)
-# Remove conjunctions etc.
-crime_desc <- tm_map(crime_desc, removeWords, stopwords("english"))
-# Remove suffixes to the common 'stem'
-#crime_desc <- tm_map(crime_desc, stemDocument)
-# Remove commas etc.
-crime_desc<- tm_map(crime_desc, removePunctuation)
-
-
-wordcloud(crime_desc
-        , scale=c(5,0.5)     # Set min and max scale
-        , max.words=100      # Set top n words
-        , random.order=FALSE # Words in decreasing freq
-        , rot.per=0.35       # % of vertical words
-        , use.r.layout=FALSE # Use C++ collision detection
-        , colors=brewer.pal(8, "Dark2"))
-
-
-devtools::install_github("lchiffon/wordcloud2")
-
-dtm <- TermDocumentMatrix(crime_desc) 
-matrix <- as.matrix(dtm) 
-words <- sort(rowSums(matrix),decreasing=TRUE) 
-df <- data.frame(word = names(words),freq=words)
-
-df <- df %>% 
-  mutate(freq = log(freq))
-
-
-letterCloud( df, word = "SF", 
-             color=rep_len( c("#001E62","#C8102E", "#DC582A", "#514689", "#0072ce", "#00685E"), nrow(df)), 
-             size = 0.4, 
-             wordSize = 6, 
-             backgroundColor="white")
-
 
 
 ```
@@ -590,155 +562,9 @@ letterCloud( df, word = "SF",
 
 
 
-# Linear regression
-
-```{r, regression, include= FALSE}
-data_model <- data_all %>% 
-  group_by(year, month, season_name, day_of_week, hour_cat, pd_district) %>% 
-  count(year)
-
-data_model <- left_join(data_model, unemployment, by = c("year", "month")) 
-
-data_model <- left_join(data_model, cpi, by = c("year", "month"))
-
-data_model <- left_join(data_model, pop, by = "year")
-
-data_model <- left_join(data_model, poverty, by = "year")
-
-data_model <- left_join(data_model, income, by = "year")
-
-
-data_model %>%  
-  ggcorr(method = c("pairwise", "pearson"), label_round=2, label = TRUE, angle = -90, max_size = 4,size = 3)
-
-
-```
-
-```{r, model, include= FALSE}
-
-model1 <- lm(n ~ 1, data= data_model)
-msummary(model1)
-
-model2 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income, data= data_model)
-msummary(model2)
-vif(model2)
-
-model3 <- lm(n ~ day_of_week + unemployment + cpi + pop + poverty_rate + personal_income + season_name + hour_cat, data= data_model)
-msummary(model3)
-vif(model3)
-
-model4 <- lm(n ~ day_of_week + poly(unemployment,2) + cpi + poverty_rate + personal_income + hour_cat + pd_district + season_name, data= data_model)
-msummary(model4)
-vif(model4)
-
-model5 <- lm(n ~ day_of_week + poly(unemployment,2) + poverty_rate + personal_income + hour_cat + pd_district + hour_cat*pd_district + cpi + season_name*unemployment, data= data_model)
-msummary(model5)
 
 
 
-```
 
-```{r choosing ols model, include= FALSE}
-#ANOVA analysis
-anova(model1, model2, model3, model4, model5)
-
-#calculation of RMSEs
-rmse_model1<- sqrt(mean(residuals(model1)^2))
-rmse_model2<- sqrt(mean(residuals(model2)^2))
-rmse_model3<- sqrt(mean(residuals(model3)^2))
-rmse_model4<- sqrt(mean(residuals(model4)^2))
-rmse_model5<- sqrt(mean(residuals(model5)^2))
-
-
-r2_1 <- summary(model1)$r.squared
-r2_2 <- summary(model2)$r.squared
-r2_3 <- summary(model3)$r.squared
-r2_4 <- summary(model4)$r.squared 
-r2_5 <- summary(model5)$r.squared 
-
- 
-table1<- data.frame(RMSE = c(rmse_model1, rmse_model2, rmse_model3, rmse_model4, rmse_model5),
-           R_squared = c(r2_1, r2_2, r2_3, r2_4, r2_5),
-           row.names = c("Model 1", "Model 2", "Model 3", "Model 4", "Model 5"))
-
-knitr::kable(table1, row.names=TRUE)
-
-```
-
-
-
-# Lasso regression
-
-```{r, splitting data, include= FALSE}
-# splitting data into training and testing datasets
-set.seed(1234)
-train_test_split <- initial_split(data_model, prop = 0.8)
-  
-training_cpi <- training(train_test_split)
-testing_cpi <- testing(train_test_split)
-
-```
-
-```{r, lasso, include= FALSE}
-
-control <- trainControl (
-    method="cv",
-    number=10,
-    verboseIter=TRUE)
-
-# Lambda sequence
-lambda_seq <- seq(0, 0.01, length = 1000)
-
-# lasso regression using k-fold cross validation to select the best lambda
-
-lasso_final <- train(
- n ~ day_of_week + poly(unemployment,3) + poverty_rate + personal_income + hour_cat + pd_district + hour_cat*pd_district + poly(cpi,3) + season_name*unemployment + personal_income*pd_district, 
- 
- data= data_model,
- method = "glmnet",
-  preProc = c("center", "scale"), 
-  trControl = control,
-  tuneGrid = expand.grid(alpha = 1, lambda = lambda_seq)
-  )
-
-# Model coefficients
-coef(lasso_final$finalModel, lasso_final$bestTune$lambda)
-
-# Best lambda
-lasso_final$bestTune$lambda
-
-# Count of how many coefficients are greater than zero and how many are equal to zero
-
-sum(coef(lasso_final$finalModel, lasso_final$bestTune$lambda)!=0)
-sum(coef(lasso_final$finalModel, lasso_final$bestTune$lambda)==0)
-
-# Make predictions
-predictions_lasso <- predict(lasso_final,testing_cpi, interval = "prediction")
-
-# Model prediction performance
-
-data.frame(
-  RMSE = RMSE(predictions_lasso, testing_cpi$n),
-  Rsquare = R2(predictions_lasso, testing_cpi$n)
-)
-
-coef(lasso_final$finalModel, lasso_final$bestTune$lambda)
-
-```
-
-Summary of models performance:
-
-```{r summary of models performance, include= FALSE}
-
-table2 <- data.frame(RMSE = c(rmse_model5, RMSE(predictions_lasso, testing_cpi$n)),
-           R_squared = c(r2_5, R2(predictions_lasso, testing_cpi$n)),
-           row.names = c("Model 5", "Lasso"))
-
-knitr::kable(table2, row.names=TRUE)
-
-
-```
-
-Based on values of RMSE and R-squared in the table above, we can conclude that the best model is the one created in LASSO regression.
 
 
