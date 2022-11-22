@@ -92,7 +92,7 @@ data <- data %>%
 
 # Count number of crimes
 data_all <- data %>% 
-  group_by(year, month,month_name, season_name, descript,day, hour, day_of_week, category, pd_district, resolution) %>% 
+  group_by(year, month,month_name, season_name, address, descript,day, hour, day_of_week, category, pd_district, resolution) %>% 
   count(year) %>% 
   filter(!year == 2015)
 
@@ -289,8 +289,9 @@ data_sf_trans <- data_sf_trans %>%
   mutate(
   intersection = as.integer(st_intersects( data_sf_trans,san_sf_3_trans)))
 
-data_sf_trans <-data_sf_trans %>% 
+data_sf_trans_2014_som <-data_sf_trans %>% 
   filter(intersection == 1)
+
 
 
 ```
@@ -325,16 +326,7 @@ crime_desc <- tm_map(crime_desc, removeWords, stopwords("english"))
 crime_desc<- tm_map(crime_desc, removePunctuation)
 
 
-wordcloud(crime_desc
-        , scale=c(5,0.5)     # Set min and max scale
-        , max.words=100      # Set top n words
-        , random.order=FALSE # Words in decreasing freq
-        , rot.per=0.35       # % of vertical words
-        , use.r.layout=FALSE # Use C++ collision detection
-        , colors=brewer.pal(8, "Dark2"))
-
-
-devtools::install_github("lchiffon/wordcloud2")
+#devtools::install_github("lchiffon/wordcloud2")
 
 dtm <- TermDocumentMatrix(crime_desc) 
 matrix <- as.matrix(dtm) 
@@ -460,7 +452,7 @@ map <- ggplot() +
   coord_sf(datum = NA) #remove coordinates 
 
 
-
+map
 
 ```
 
@@ -470,7 +462,27 @@ map <- ggplot() +
 
 ```{r,  Bar chart top categories of crime}
 
+top_crime_category_2014 <- data_sf_trans_2014_som %>%
+  group_by(category) %>%
+  summarise(count = n()) %>%
+  slice_max(order_by = count, n = 10) %>%
+  mutate(top = ifelse(category == "LARCENY/THEFT",
+                      yes = "Yes",
+                      no = "No"))
 
+my_colours <- c("#001E62", "#C8102E")
+
+bar_chart <- 
+ggplot(data = top_crime_category_2014,
+       aes(x = count, y = fct_reorder(category, count), fill = top)) +
+  geom_col() +
+  scale_fill_manual(values = my_colours) +
+  theme_minimal() +
+  labs(y = "Crime Category",
+       x = "Crime Count") +
+  theme(legend.position = "none")
+
+bar_chart
 
 ```
 
@@ -481,15 +493,21 @@ map <- ggplot() +
 
 
 ```{r, Crime by week}
+
+#new dataset
+data_sf_trans_2014_som_theft <- data_sf_trans_2014_som %>% 
+  filter(category == "LARCENY/THEFT")
+
+
 #-Crime by week
-data$day_of_week <- factor(data$day_of_week,
+data$day_of_week <- factor(data_sf_trans_2014_som_theft$day_of_week,
                           levels = c("Monday","Tuesday","Wednesday",
                                      "Thursday", "Friday", 
                                      "Saturday", "Sunday"),
                           ordered = TRUE)
 
 
- data_all%>% 
+ data_sf_trans_2014_som_theft%>% 
   group_by(day_of_week, category) %>% 
   summarise(total_crime = n())%>%
    filter(category %in% c("LARCENY/THEFT","OTHER OFFENSES","NON-CRIMINAL","ASSAULT","DRUG/NARCOTIC","VEHICLE THEFT","VANDALISM","WARRANTS","BURGLARY","SUSPICIOUS OCC"))%>%
@@ -515,9 +533,14 @@ data$day_of_week <- factor(data$day_of_week,
 ```
 
 
-# Plot 6 Crime by hour
+# Plot 6 - Crime by hour
 
 ```{r, Crime by hour}
+
+# new dataset for day
+#data_sf_trans_2014_som_theft_day
+
+
 
 #-Crime by hour
  time<- function(x){ 
@@ -555,7 +578,48 @@ ggplot(data = crime_occurence, mapping = aes(x = n, y = reorder(category, n))) +
 
 ```
 
+# Plot 7 - where crimes are most likely to occur
 
+```{r, where crimes are most}
+
+# new dataset for day
+#data_sf_trans_2014_som_theft_day
+
+#where crimes are most likely to occur
+library(tidyr) 
+library(data.table)
+ add_data<- data_all %>%
+  separate(address, c("add1", "add2"), "/")%>%
+   select(add1, add2)
+ 
+add_data$add1 <- trimws(add_data$add1, which = c("right"))
+add_data$add1<-str_extract(add_data$add1, '\\w+$')
+
+add_data$add2 <- trimws(add_data$add2, which = c("right"))
+add_data$add2<-str_extract(add_data$add2, '\\w+$')
+
+
+add_type<-rbind(add_data[,ncol(add_data)-1],setnames((add_data[,ncol(add_data)]),names(add_data[,ncol(add_data)-1])))
+
+add_type%>%
+  filter(!is.na(add1)) %>%
+  group_by(add1)%>%
+  summarise(count = sum(n))
+
+
+add_type%>%
+  group_by(add1)%>%
+  summarise(n = n())%>%
+  arrange(desc(n))%>%
+  filter(!add1=="NA")%>%
+  ggplot(aes(reorder(add1,n),y=n))+
+  geom_col(fill="#00685E")+
+  coord_flip()+
+  labs(title = "Where are crimes most likly to occur?" ,
+       x = "Crime count",
+       y = "Adress")
+
+```
 
 
 
