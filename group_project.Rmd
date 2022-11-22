@@ -210,6 +210,13 @@ income <- income %>%
          year = year(date)) %>% 
   select(year, personal_income)
 
+income <- income %>% 
+  arrange(year) %>%
+  mutate(diff_year = year - lag(year),  # Difference in time (just in case there are gaps)
+         diff_growth = personal_income - lag(personal_income), # Difference in route between years
+         income_growth = (diff_growth / diff_year)/personal_income * 100) %>%  # growth rate in percent 
+  select(year, personal_income, income_growth)
+
 ```
 
 ```{r, join data}
@@ -233,6 +240,8 @@ data_all <- left_join(data_all, income, by = "year")
 
 # Unemployment - latest data Sep 2022 - 2.1%
 
+# Income growth latest data 2021 - 12.2%
+
 
 data_line <- data_all %>% 
   group_by(year, month_name, poverty_rate, personal_income) %>% 
@@ -243,17 +252,18 @@ data_line <- data_all %>%
 
 
 diffs <- data_all %>% 
-  group_by(year, poverty_rate) %>% 
+  group_by(year, poverty_rate, income_growth) %>% 
   summarise(n = count(year),
          cpi = mean(cpi),
          unemployment = mean(unemployment)) %>% 
   mutate(cpi_diff = cpi - 6.0,
          unemployment_diff = unemployment - 2.1,
          poverty_rate_diff = poverty_rate - 10,
-         min_diffs = sum(cpi_diff, unemployment_diff, poverty_rate_diff))
+         income_growth_diff = income_growth - tail(income$income_growth, n=1),
+         min_diffs = sum(cpi_diff, unemployment_diff, poverty_rate_diff, income_growth_diff))
 
 diffs <- diffs %>% 
-  mutate(is_min = ifelse(min_diffs == min(diffs$min_diffs), 1, 0)) %>% 
+  mutate(is_min = ifelse(min_diffs == diffs[which(abs(diffs$min_diffs)==min(abs(diffs$min_diffs))),]$min_diffs, 1, 0)) %>% 
   select(year, is_min)
 
 
@@ -261,7 +271,7 @@ data_line <- left_join(data_line, diffs, by = "year")
 
 
 rectangle <- data_line %>% 
-  filter(year == 2007)
+  filter(year == 2014)
 
 ggplot(data = data_line) +
   geom_line(aes(x = month_name, y = n, group = factor(year), color = factor(is_min))) +
